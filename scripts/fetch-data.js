@@ -1,16 +1,24 @@
 import { writeFileSync, mkdirSync } from "fs";
 import osmtogeojson from "osmtogeojson";
+import booleanIntersects from "@turf/boolean-intersects";
 
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
 
-async function queryOverpass(query) {
-  const res = await fetch(OVERPASS_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `data=${encodeURIComponent(query)}`,
-  });
-  if (!res.ok) throw new Error(`Overpass error: ${res.status} ${res.statusText}`);
-  return res.json();
+async function queryOverpass(query, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    if (i > 0) {
+      console.log(`Retry ${i}/${retries - 1}, waiting 30s...`);
+      await new Promise((r) => setTimeout(r, 30000));
+    }
+    const res = await fetch(OVERPASS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `data=${encodeURIComponent(query)}`,
+    });
+    if (res.ok) return res.json();
+    if (i === retries - 1) throw new Error(`Overpass error: ${res.status} ${res.statusText}`);
+    console.log(`Got ${res.status}, retrying...`);
+  }
 }
 
 async function fetchParking() {
@@ -43,32 +51,52 @@ async function fetchParking() {
   return geojson;
 }
 
-async function fetchBoundary() {
-  console.log("Fetching Wilmington city boundary...");
+// Hand-drawn downtown Wilmington boundary
+// North: Brandywine Creek / Augustine Cut-Off area
+// South: Christina River
+// West: I-95 / Adams St corridor
+// East: Walnut St / riverfront
+function getDowntownBoundary() {
+  console.log("Using downtown Wilmington boundary...");
 
-  const query = `
-    [out:json][timeout:60];
-    relation(369472);
-    out body geom;
-  `;
+  const boundary = {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: { name: "Downtown Wilmington" },
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [-75.5528, 39.7545], // NW
+              [-75.5338, 39.7477], // NE
+              [-75.5442, 39.7305], // SE
+              [-75.5632, 39.7373], // SW
+              [-75.5528, 39.7545], // close
+            ],
+          ],
+        },
+      },
+    ],
+  };
 
-  const data = await queryOverpass(query);
-  const geojson = osmtogeojson(data);
-
-  // Keep only the boundary polygon
-  geojson.features = geojson.features.filter(
-    (f) => f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon"
-  );
-
-  console.log(`Found ${geojson.features.length} boundary feature(s)`);
-  return geojson;
+  return boundary;
 }
 
 async function main() {
   mkdirSync("public/data", { recursive: true });
 
-  const parking = await fetchParking();
-  const boundary = await fetchBoundary();
+  const allParking = await fetchParking();
+  const boundary = getDowntownBoundary();
+
+  // Filter parking to only features intersecting downtown boundary
+  const downtownPoly = boundary.features[0];
+  const parking = {
+    ...allParking,
+    features: allParking.features.filter((f) => booleanIntersects(f, downtownPoly)),
+  };
+  console.log(`${parking.features.length} parking features within downtown boundary`);
 
   writeFileSync("public/data/parking.geojson", JSON.stringify(parking, null, 2));
   console.log("Wrote public/data/parking.geojson");

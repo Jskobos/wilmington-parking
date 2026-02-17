@@ -14,15 +14,18 @@ export default function Map({ parkingGeoJSON, boundaryGeoJSON }) {
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: "mapbox://styles/mapbox/light-v11",
-      center: [-75.5398, 39.7391],
-      zoom: 13,
+      center: [-75.545, 39.742],
+      zoom: 14.5,
     });
 
     map.addControl(new mapboxgl.NavigationControl(), "top-right");
 
     mapRef.current = map;
 
-    return () => map.remove();
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
   }, []);
 
   useEffect(() => {

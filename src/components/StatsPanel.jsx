@@ -3,7 +3,7 @@ export default function StatsPanel({ stats }) {
 
   return (
     <div className="stats-panel">
-      <h1>Wilmington, DE</h1>
+      <h1>Downtown Wilmington</h1>
       <h2>Parking Coverage</h2>
 
       <div className="stat-grid">
@@ -24,7 +24,7 @@ export default function StatsPanel({ stats }) {
 
         <div className="stat-card">
           <span className="stat-value">{stats.cityAreaSqMi.toFixed(1)}</span>
-          <span className="stat-label">sq mi city area</span>
+          <span className="stat-label">sq mi downtown area</span>
         </div>
       </div>
 
