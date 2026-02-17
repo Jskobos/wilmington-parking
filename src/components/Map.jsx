@@ -85,6 +85,12 @@ export default function Map({ parkingGeoJSON, boundaryGeoJSON }) {
         });
       }
 
+      function esc(str) {
+        const el = document.createElement("div");
+        el.textContent = str;
+        return el.innerHTML;
+      }
+
       // Hover interaction
       const popup = new mapboxgl.Popup({
         closeButton: false,
@@ -110,11 +116,11 @@ export default function Map({ parkingGeoJSON, boundaryGeoJSON }) {
         );
 
         const props = feature.properties;
-        const name = props.name || "Unnamed parking";
+        const name = esc(props.name || "Unnamed parking");
         const type = props.parking || props.building === "parking" ? "Garage" : "Surface lot";
-        const operator = props.operator ? `<br>Operator: ${props.operator}` : "";
-        const access = props.access ? `<br>Access: ${props.access}` : "";
-        const capacity = props.capacity ? `<br>Capacity: ${props.capacity}` : "";
+        const operator = props.operator ? `<br>Operator: ${esc(props.operator)}` : "";
+        const access = props.access ? `<br>Access: ${esc(props.access)}` : "";
+        const capacity = props.capacity ? `<br>Capacity: ${esc(props.capacity)}` : "";
 
         popup
           .setLngLat(e.lngLat)
